@@ -14,24 +14,24 @@
 struct nblock_and_thread {   
   uint32_t nblocks;          
   uint32_t nblocks_each_thread;   
-  uint16_t threads_block_extra;          
-  uint16_t threads;          
+  uint8_t threads_block_extra;          
+  uint8_t threads;          
 }; 
 
 struct recursive_variables {   
   //uint32_t nblocks;          
   uint32_t nblocks_for_each_thread;   
-  uint16_t threads_with_1more;          
-  uint16_t threads;    
-  uint16_t thread_id;      
+  uint8_t threads_with_1more;          
+  uint8_t threads;    
+  uint8_t thread_id;      
 }; 
 
 
 // Print out the usage of the program and exit.
 void Usage(char*);
-void thread_startingPoint(uint8_t *, struct nblock_and_thread);
+void thread_testing(uint8_t *, struct recursive_variables);
 
-void thread_testing(struct recursive_variables );
+
 
 uint32_t jenkins_one_at_a_time_hash(uint8_t* , uint64_t );
 
@@ -118,13 +118,16 @@ int main(int argc, char** argv) {
 
 
 
+
   nblocks_each_thread = nblocks/threads;
   threads_block_extra = nblocks%threads;
+  struct recursive_variables temp_struct_hold = {nblocks_each_thread, 
+                                                          threads - threads_block_extra, 
+                                                          threads, 
+                                                          0};  
 
-
-  struct nblock_and_thread struct_1 = {nblocks, nblocks_each_thread, threads_block_extra, threads};
-  thread_startingPoint(file_string, struct_1);
-
+  
+  thread_testing(file_string, temp_struct_hold);
 
 
 
@@ -154,46 +157,39 @@ int main(int argc, char** argv) {
 
 
 //////////////////////////////////////////////////////////////////////
-void thread_startingPoint(uint8_t *file_data, struct nblock_and_thread struct_1){
-  
-  struct recursive_variables thread_and_extra_thread = {struct_1.nblocks_each_thread, 
-                                                          struct_1.threads - struct_1.threads_block_extra, 
-                                                          struct_1.threads, 
-                                                          0};  
-  thread_testing(thread_and_extra_thread);
-}
-//////////////////////////////////////////////////////////////////////
+void thread_testing(uint8_t *file_data, struct recursive_variables struct_data){
   
 
-void thread_testing(struct recursive_variables struct_data){
   //int thread_minus_one = struct_data.threads - struct_data.threads_with_1more - 1;
+
+  int one_or_two = 0;
   int currrent_thread = struct_data.thread_id;
 
-  printf("\n[current thread=%d : thread=%d]\n", currrent_thread, struct_data.threads);
-
   if(currrent_thread < struct_data.threads){
-
-    printf("\nThread number: %d", currrent_thread);
-    
+    //printf("\n[current thread=%d : thread=%d]\n", currrent_thread, struct_data.threads);
+    //printf("PASS\n");
+    //printf("\nThread number: %d", currrent_thread);
     if(currrent_thread < struct_data.threads_with_1more){
-      //printf("\n[%d : %d]", currrent_thread + 1, struct_data.nblocks_for_each_thread);
-      printf("\n NO EXTRA: [%d]\n", currrent_thread);
-      struct_data.thread_id = currrent_thread + 1;
+      printf("\n[%d : %d]", currrent_thread, struct_data.nblocks_for_each_thread);
+      //printf("\n NO EXTRA: [%d]\n", currrent_thread);
+
     }
     else{
-      //printf("\n[%d : %d]", currrent_thread + 2, struct_data.nblocks_for_each_thread + 1);
-      printf("\n Threads that need one extra: [%d]\n", currrent_thread);
-      struct_data.thread_id = currrent_thread + 2;
+      printf("\n[%d : %d]", currrent_thread, struct_data.nblocks_for_each_thread + 1);
+      //printf("\n Threads that need one extra: [%d]\n", currrent_thread);
     }
 
-      struct_data.thread_id = currrent_thread + 1;
-      thread_testing(struct_data);
-      struct_data.thread_id = currrent_thread + 2;
-      thread_testing(struct_data);
+      struct_data.thread_id = 2 * currrent_thread + 1;
+      thread_testing(file_data, struct_data);
+
+      struct_data.thread_id = 2 * currrent_thread + 2;
+      thread_testing(file_data, struct_data);
+  
   }  
+
+
 }
-
-
+//////////////////////////////////////////////////////////////////////
 
 /*
 struct recursive_variables {   
