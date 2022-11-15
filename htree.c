@@ -9,24 +9,26 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <pthread.h>
+#include <string.h>
 
 #define BSIZE 4096
 
 struct recursive_variables {   
   //uint32_t nblocks;
 
-  uint8_t whole_file;
   struct stat file_data;          
   uint16_t threads;
-  uint32_t total_nblocks_for_each_thread;   
-  uint16_t thread_limit_before_extra_nblocks;      
-  uint16_t thread_current_count;      
+  uint32_t nblocks_each_thread;   
+  uint16_t thread_current_count;
 }; 
 
 // Print out the usage of the program and exit.
 void Usage(char*);
-void *thread_testing(/*uint8_t *,*/ void* struct_data);
+void *thread_testing(void* struct_data);
 uint32_t jenkins_one_at_a_time_hash(uint8_t* , uint64_t );
+
+uint8_t *file_string;
+struct stat fileStat;
 
 
 int main(int argc, char** argv) {
@@ -36,11 +38,7 @@ int main(int argc, char** argv) {
   int32_t fd;
   uint32_t nblocks;
 
-  uint8_t *file_string;
-  //uint64_t x = 0;
-
-  uint32_t total_nblocks_for_each_thread = 0;
-  uint16_t add_extra_nblock_thread = 0;
+  uint32_t nblocks_each_thread = 0;
   //////////////////////////////////////////////////////////
 
   // input checking 
@@ -57,7 +55,6 @@ int main(int argc, char** argv) {
   // calculate nblocks 
 
   //Use fset
-  struct stat fileStat;
   fstat(fd, &fileStat);
   //Use mmap
   file_string = mmap(NULL, fileStat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);  
@@ -66,50 +63,71 @@ int main(int argc, char** argv) {
   if (fileStat.st_size % BSIZE == 0){
     nblocks = fileStat.st_size/BSIZE;
   }
-  else if(fileStat.st_size % BSIZE == fileStat.st_size){
-    nblocks = 1;
-  }
   else{
     nblocks = 1 + (fileStat.st_size/BSIZE);
   }
 
 
+
 //////////////////////////////////////////////////////////////////////////
 // Begin seperating nblocks to number of threads
   uint16_t threads = atoi(argv[2]);
-  if(nblocks < threads ||  threads <= 0){
+  if(threads == 0 || nblocks < threads){
     perror("Number of threads are more than number of blocks...");
     exit(EXIT_FAILURE);
   }
-  
-  total_nblocks_for_each_thread = nblocks/threads;
-  add_extra_nblock_thread = nblocks%threads;
+  else if (nblocks % threads != 0){
+  perror("Nblocks not evenly distributing to number of threads...");
+  exit(EXIT_FAILURE);
+  }
 
+
+  nblocks_each_thread = nblocks/threads;
+  printf("\nnblocks for each thread: %d \n", nblocks_each_thread);
 
   struct recursive_variables *temp_hold = malloc(sizeof(struct recursive_variables));
-  
-
-  
-  temp_hold->whole_file = *file_string;
   temp_hold->file_data = fileStat;
   temp_hold->threads = threads;
-  temp_hold->total_nblocks_for_each_thread = total_nblocks_for_each_thread;
-  temp_hold->thread_limit_before_extra_nblocks = (threads - add_extra_nblock_thread);
+  temp_hold->nblocks_each_thread = nblocks_each_thread;
   temp_hold->thread_current_count = 0;
 
 
   pthread_t p1; 
   pthread_create(&p1, NULL, thread_testing, temp_hold);
-  //free(temp_hold); 
   pthread_join(p1, NULL);  
+  free(temp_hold); 
+
 //////////////////////////////////////////////////////////////////////////
 
 
-  /*  TEST, THIS WORKS AND PRODUCES THE CORRECT OUTPUT FOR 1 THREAD!!!!
-  printf("\n%lld\n",fileStat.st_size);
-  x = jenkins_one_at_a_time_hash(file_string, fileStat.st_size);
-  printf("\n%lld\n",x);
-  */
+
+
+
+
+
+  /*  TEST, THIS WORKS AND PRODUCES THE CORRECT OUTPUT FOR 1 THREAD!!!!*/
+  //for(int i = (fileStat.st_size - 1); i > (fileStat.st_size) - 100; i--){
+  //  printf("%c",file_string[i]);
+  //}
+
+
+/*
+  printf("\n\n\n");
+  uint32_t x = 0;
+  printf("\n%d",nblocks_each_thread);
+  printf("\n%d",fileStat.st_size);
+  printf("\n%d",nblocks_each_thread * 4096);
+
+
+  
+  for(int i = 0; i < nblocks_each_thread * 4096; i++){
+    x+= 1;
+  }
+  printf("\nTOTAL BYTES IN MAIN %d\n", x);
+  //printf("\n%d",fileStat.st_size);
+  //x = jenkins_one_at_a_time_hash(file_string, fileStat.st_size);
+  //printf("\n%lld\n",x);
+  
   /*
   printf(" no. of blocks = %u \n", nblocks);
   double start = GetTime();
@@ -132,50 +150,176 @@ int main(int argc, char** argv) {
 
 
 //////////////////////////////////////////////////////////////////////
-void *thread_testing(/*uint8_t *file_data,*/ void* struct_data){
-  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void *thread_testing(void* struct_data){
+
   struct recursive_variables *thread_node = (struct recursive_variables*)struct_data;
   int currrent_thread = thread_node->thread_current_count;
 
   if(currrent_thread < thread_node->threads){
-    if(currrent_thread < thread_node->thread_limit_before_extra_nblocks){
-      printf("\n[%d : %d]", currrent_thread, thread_node->total_nblocks_for_each_thread);
-    }
-    else{
-      printf("\n[%d : %d]", currrent_thread, thread_node->total_nblocks_for_each_thread + 1);
-    }
+    uint64_t beginning = (BSIZE * thread_node->nblocks_each_thread * thread_node->thread_current_count);
+    uint64_t ending = (BSIZE * ((thread_node->thread_current_count + 1) * thread_node->nblocks_each_thread));
+
+    //printf("\n%d < %d", beginning, ending);
+    //printf("\n%d\n", thread_node->nblocks_each_thread * BSIZE);
+
+    uint64_t x = 0;
+    uint8_t *holdcharacters = (uint8_t *) malloc ((thread_node->nblocks_each_thread * BSIZE) *sizeof(uint8_t));
+
+
+    //printf("\nTEST1\n");
+    //printf("\nStarting point: %d, Ending point: %d", beginning/BSIZE, ending/BSIZE);
+    //printf("\nStarting point CHAR: %c, Ending point CHAR: %c\n", file_string[beginning], file_string[ending - 1]);
+    
   
+    uint64_t count_i = 0;
+    for(int i = beginning; i < ending; i++){
+      holdcharacters[count_i++] = file_string[i];
+    }
+
+
+    //printf("\nNode %d: count: %d\n", currrent_thread, x / BSIZE);
+    //printf("\nNODE: %d Beginning and end index [%d : %d]", thread_node->thread_current_count, beginning, ending);
+    //printf("\n%d\n", thread_node->nblocks_each_thread * BSIZE);
+
+    
+    uint64_t y = 0;
+    // THIS NEEDS FIXING!!!
+    y = jenkins_one_at_a_time_hash(holdcharacters, (BSIZE * thread_node->nblocks_each_thread));
+    printf("\n%lld\n",y);
+
+
+    int j = 0;
+    uint64_t val = y;
+    while(val > 0){      
+      val /= 10;
+      j++;
+    }
+    //printf("\n%d\n",j);
+
+    char str[j+1];
+    sprintf(str, "%lld", y);
+
+    printf("\n");
+    //printf("%s", str);
+    //printf(" %d", strlen(str));
+    //printf("\n%s\n",str);
+  
+
     struct recursive_variables *temp1 = malloc(sizeof(struct recursive_variables));
-      temp1->whole_file = thread_node->whole_file;
       temp1->file_data = thread_node->file_data;
-      temp1->total_nblocks_for_each_thread = thread_node->total_nblocks_for_each_thread;
-      temp1->thread_limit_before_extra_nblocks = (thread_node->thread_limit_before_extra_nblocks);
+      temp1->nblocks_each_thread = thread_node->nblocks_each_thread;
       temp1->threads = thread_node->threads;
       temp1->thread_current_count = (2 * thread_node->thread_current_count + 1);   
 
-
     struct recursive_variables *temp2 = malloc(sizeof(struct recursive_variables));
-      temp2->whole_file = thread_node->whole_file;
       temp2->file_data = thread_node->file_data;
-      temp2->total_nblocks_for_each_thread = thread_node->total_nblocks_for_each_thread;
-      temp2->thread_limit_before_extra_nblocks = (thread_node->thread_limit_before_extra_nblocks);
+      temp2->nblocks_each_thread = thread_node->nblocks_each_thread;
       temp2->threads = thread_node->threads;
       temp2->thread_current_count = (2 * thread_node->thread_current_count + 2);   
-
 
     pthread_t p1, p2;
 
     pthread_create(&p1, NULL, thread_testing, temp1); 
-    pthread_create(&p2, NULL, thread_testing, temp2); 
-
     pthread_join(p1, NULL);  
+    pthread_create(&p2, NULL, thread_testing, temp2); 
     pthread_join(p2, NULL);  
-  
+
+
+    free(holdcharacters);
+    free(temp1); 
+    free(temp2); 
   }
-  
   return NULL;
 }
 //////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
