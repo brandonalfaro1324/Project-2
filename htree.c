@@ -27,6 +27,9 @@ void Usage(char*);
 void *thread_testing(void* struct_data);
 uint32_t jenkins_one_at_a_time_hash(uint8_t* , uint64_t );
 
+int number_of_integers(uint64_t);
+
+
 uint8_t *file_string;
 struct stat fileStat;
 
@@ -117,8 +120,6 @@ int main(int argc, char** argv) {
   printf("\n%d",nblocks_each_thread);
   printf("\n%d",fileStat.st_size);
   printf("\n%d",nblocks_each_thread * 4096);
-
-
   
   for(int i = 0; i < nblocks_each_thread * 4096; i++){
     x+= 1;
@@ -199,11 +200,37 @@ int main(int argc, char** argv) {
 
 
 void *thread_testing(void* struct_data){
-
   struct recursive_variables *thread_node = (struct recursive_variables*)struct_data;
   int currrent_thread = thread_node->thread_current_count;
 
+  uint64_t parent_value = 0;
   if(currrent_thread < thread_node->threads){
+
+    struct recursive_variables *temp1 = malloc(sizeof(struct recursive_variables));
+      temp1->file_data = thread_node->file_data;
+      temp1->nblocks_each_thread = thread_node->nblocks_each_thread;
+      temp1->threads = thread_node->threads;
+      temp1->thread_current_count = (2 * thread_node->thread_current_count + 1);   
+
+    struct recursive_variables *temp2 = malloc(sizeof(struct recursive_variables));
+      temp2->file_data = thread_node->file_data;
+      temp2->nblocks_each_thread = thread_node->nblocks_each_thread;
+      temp2->threads = thread_node->threads;
+      temp2->thread_current_count = (2 * thread_node->thread_current_count + 2);   
+
+
+    uint64_t left_child;
+    uint64_t right_child;
+    
+    pthread_t p1, p2;
+
+    pthread_create(&p1, NULL, thread_testing, temp1); 
+    pthread_join(p1, (void *) &left_child);  
+    pthread_create(&p2, NULL, thread_testing, temp2); 
+    pthread_join(p2, (void *) &right_child);  
+    
+
+    
     uint64_t beginning = (BSIZE * thread_node->nblocks_each_thread * thread_node->thread_current_count);
     uint64_t ending = (BSIZE * ((thread_node->thread_current_count + 1) * thread_node->nblocks_each_thread));
 
@@ -230,54 +257,42 @@ void *thread_testing(void* struct_data){
     //printf("\n%d\n", thread_node->nblocks_each_thread * BSIZE);
 
     
-    uint64_t y = 0;
-    // THIS NEEDS FIXING!!!
-    y = jenkins_one_at_a_time_hash(holdcharacters, (BSIZE * thread_node->nblocks_each_thread));
-    printf("\n%lld\n",y);
 
 
-    int j = 0;
-    uint64_t val = y;
-    while(val > 0){      
-      val /= 10;
-      j++;
-    }
-    //printf("\n%d\n",j);
+    parent_value = jenkins_one_at_a_time_hash(holdcharacters, (BSIZE * thread_node->nblocks_each_thread));
 
-    char str[j+1];
-    sprintf(str, "%lld", y);
+    int parent_integer = number_of_integers(parent_value);
+    int left_integer = number_of_integers(left_child);
+    int right_integer = number_of_integers(right_child);
 
-    printf("\n");
-    //printf("%s", str);
-    //printf(" %d", strlen(str));
-    //printf("\n%s\n",str);
+    printf("\n\nCURRENT THREAD: %d\n", currrent_thread);
+    printf("\nPARENT VALUE: %lld, AND INTEGER: %d", parent_value, parent_integer);
+    printf("\nLEFT CHILD VALIE: %lld, AND INTEGER: %d", left_child, left_integer);
+    printf("\nLEFT CHILD VALIE: %lld, AND INTEGER: %d", right_child, right_integer);
+
+    char parent_string[parent_integer+1];
+    char l_child_string[left_integer+1];
+    char r_child_string[right_integer+1];
+
+    sprintf(parent_string, "%lld", parent_value);
+    sprintf(l_child_string, "%lld", left_child);
+    sprintf(r_child_string, "%lld", right_child);
+    printf("\nPARENT: %s, LEFT CHILD: %s, RIGHT CHILD: %s", parent_string, l_child_string, r_child_string);
+    printf("\n\n");
   
 
-    struct recursive_variables *temp1 = malloc(sizeof(struct recursive_variables));
-      temp1->file_data = thread_node->file_data;
-      temp1->nblocks_each_thread = thread_node->nblocks_each_thread;
-      temp1->threads = thread_node->threads;
-      temp1->thread_current_count = (2 * thread_node->thread_current_count + 1);   
 
-    struct recursive_variables *temp2 = malloc(sizeof(struct recursive_variables));
-      temp2->file_data = thread_node->file_data;
-      temp2->nblocks_each_thread = thread_node->nblocks_each_thread;
-      temp2->threads = thread_node->threads;
-      temp2->thread_current_count = (2 * thread_node->thread_current_count + 2);   
 
-    pthread_t p1, p2;
 
-    pthread_create(&p1, NULL, thread_testing, temp1); 
-    pthread_join(p1, NULL);  
-    pthread_create(&p2, NULL, thread_testing, temp2); 
-    pthread_join(p2, NULL);  
 
 
     free(holdcharacters);
     free(temp1); 
     free(temp2); 
   }
-  return NULL;
+
+  //printf("\nreturning value: %lld\n", y);
+  return (void *) parent_value;
 }
 //////////////////////////////////////////////////////////////////////
 
@@ -291,7 +306,16 @@ void *thread_testing(void* struct_data){
 
 
 
+int number_of_integers(uint64_t integer){
+    int number_of_integers = 0;
+    uint64_t val = integer;
+    while(val > 0){      
+      val /= 10;
+      number_of_integers++;
+    }
 
+  return number_of_integers;
+}
 
 
 
