@@ -108,11 +108,6 @@ int main(int argc, char** argv) {
 
 
 
-  /*  TEST, THIS WORKS AND PRODUCES THE CORRECT OUTPUT FOR 1 THREAD!!!!*/
-  //for(int i = (fileStat.st_size - 1); i > (fileStat.st_size) - 100; i--){
-  //  printf("%c",file_string[i]);
-  //}
-
 
 /*
   printf("\n\n\n");
@@ -202,7 +197,7 @@ int main(int argc, char** argv) {
 void *thread_testing(void* struct_data){
   struct recursive_variables *thread_node = (struct recursive_variables*)struct_data;
   int currrent_thread = thread_node->thread_current_count;
-
+  
   uint64_t parent_value = 0;
   if(currrent_thread < thread_node->threads){
 
@@ -225,73 +220,125 @@ void *thread_testing(void* struct_data){
     pthread_t p1, p2;
 
     pthread_create(&p1, NULL, thread_testing, temp1); 
-    pthread_join(p1, (void *) &left_child);  
     pthread_create(&p2, NULL, thread_testing, temp2); 
+    pthread_join(p1, (void *) &left_child);  
     pthread_join(p2, (void *) &right_child);  
     
 
+
+
+
+
+
+
+      uint64_t beginning = (BSIZE * thread_node->nblocks_each_thread * thread_node->thread_current_count);
+      uint64_t ending = (BSIZE * ((thread_node->thread_current_count + 1) * thread_node->nblocks_each_thread));
+
+      uint64_t x = 0;
+      uint8_t *holdcharacters = (uint8_t *) malloc ((thread_node->nblocks_each_thread * BSIZE) *sizeof(uint8_t));
+      //printf("\nTEST1\n");
+      //printf("\nStarting point: %d, Ending point: %d", beginning/BSIZE, ending/BSIZE);
+      //printf("\nStarting point CHAR: %c, Ending point CHAR: %c\n", file_string[beginning], file_string[ending - 1]);
+      
+
+
+
+
+
+
+
+
+      uint64_t count_i = 0;
+      for(int i = beginning; i < ending; i++){
+        holdcharacters[count_i++] = file_string[i];
+      }
+      //printf("\nNode %d: count: %d\n", currrent_thread, x / BSIZE);
+      //printf("\nNODE: %d Beginning and end index [%d : %d]", thread_node->thread_current_count, beginning, ending);
+      //printf("\n%d\n", thread_node->nblocks_each_thread * BSIZE);
+      parent_value = jenkins_one_at_a_time_hash(holdcharacters, (BSIZE * thread_node->nblocks_each_thread));
     
-    uint64_t beginning = (BSIZE * thread_node->nblocks_each_thread * thread_node->thread_current_count);
-    uint64_t ending = (BSIZE * ((thread_node->thread_current_count + 1) * thread_node->nblocks_each_thread));
+      if(left_child == 0 && right_child == 0){
+        return (void *) parent_value;
+      }
 
-    //printf("\n%d < %d", beginning, ending);
-    //printf("\n%d\n", thread_node->nblocks_each_thread * BSIZE);
+      int parent_integer = number_of_integers(parent_value);
+      int left_integer = number_of_integers(left_child);
+      int right_integer = number_of_integers(right_child);
+      int total_count = 0;
+    /*
+      printf("\n\nCURRENT THREAD: %d\n", currrent_thread);
+      printf("\nPARENT VALUE: %lld, AND INTEGER: %d", parent_value, parent_integer-1);
+      printf("\nLEFT CHILD VALIE: %lld, AND INTEGER: %d", left_child, left_integer-1);
+      printf("\nLEFT CHILD VALIE: %lld, AND INTEGER: %d", right_child, right_integer-1);
+    */
+      char parent_string[parent_integer+1];
+      char l_child_string[left_integer+1];
+      char r_child_string[right_integer+1];
 
-    uint64_t x = 0;
-    uint8_t *holdcharacters = (uint8_t *) malloc ((thread_node->nblocks_each_thread * BSIZE) *sizeof(uint8_t));
-
-
-    //printf("\nTEST1\n");
-    //printf("\nStarting point: %d, Ending point: %d", beginning/BSIZE, ending/BSIZE);
-    //printf("\nStarting point CHAR: %c, Ending point CHAR: %c\n", file_string[beginning], file_string[ending - 1]);
-    
-  
-    uint64_t count_i = 0;
-    for(int i = beginning; i < ending; i++){
-      holdcharacters[count_i++] = file_string[i];
-    }
-
-
-    //printf("\nNode %d: count: %d\n", currrent_thread, x / BSIZE);
-    //printf("\nNODE: %d Beginning and end index [%d : %d]", thread_node->thread_current_count, beginning, ending);
-    //printf("\n%d\n", thread_node->nblocks_each_thread * BSIZE);
-
-    
-
-
-    parent_value = jenkins_one_at_a_time_hash(holdcharacters, (BSIZE * thread_node->nblocks_each_thread));
-
-    int parent_integer = number_of_integers(parent_value);
-    int left_integer = number_of_integers(left_child);
-    int right_integer = number_of_integers(right_child);
-
-    printf("\n\nCURRENT THREAD: %d\n", currrent_thread);
-    printf("\nPARENT VALUE: %lld, AND INTEGER: %d", parent_value, parent_integer);
-    printf("\nLEFT CHILD VALIE: %lld, AND INTEGER: %d", left_child, left_integer);
-    printf("\nLEFT CHILD VALIE: %lld, AND INTEGER: %d", right_child, right_integer);
-
-    char parent_string[parent_integer+1];
-    char l_child_string[left_integer+1];
-    char r_child_string[right_integer+1];
-
-    sprintf(parent_string, "%lld", parent_value);
-    sprintf(l_child_string, "%lld", left_child);
-    sprintf(r_child_string, "%lld", right_child);
-    printf("\nPARENT: %s, LEFT CHILD: %s, RIGHT CHILD: %s", parent_string, l_child_string, r_child_string);
-    printf("\n\n");
-  
+      sprintf(parent_string, "%lld", parent_value);
+      sprintf(l_child_string, "%lld", left_child);
+      sprintf(r_child_string, "%lld", right_child);
+    /*
+      printf("\nPARENT: %s, LEFT CHILD: %s, RIGHT CHILD: %s", parent_string, l_child_string, r_child_string);
+    */
 
 
 
 
 
 
-    free(holdcharacters);
-    free(temp1); 
-    free(temp2); 
+
+
+
+
+
+
+      char first_concat[100];
+
+      if(left_integer != 0 && right_integer != 0){
+        printf("\n1 left_integer != 0 && right_integer != 0");
+        strcat(first_concat,parent_string);
+        strcat(first_concat,l_child_string);
+        strcat(first_concat,r_child_string);
+        total_count = parent_integer + left_integer + right_integer;
+      }
+      else{
+        if(left_integer == 0 && right_integer != 0){
+        printf("\n2 left_integer == 0 && right_integer != 0");
+          strcat(first_concat,parent_string);
+          strcat(first_concat,r_child_string);
+          total_count = parent_integer + right_integer;
+        }
+        else if(left_integer != 0 && right_integer == 0){
+        printf("\n3 left_integer != 0 && right_integer == 0");
+          strcat(first_concat,parent_string);
+          strcat(first_concat,l_child_string);
+          total_count = parent_integer + left_integer;
+        }
+        else{
+        printf("\n4 JUST PARENT");
+          strcat(first_concat,parent_string);
+          total_count = parent_integer;
+        }
+      }
+      printf("\ncurrent Thread: %d", currrent_thread);
+      printf("\nConcatenated String: %s, AND Conca. value: %d", first_concat, total_count);
+      parent_value = jenkins_one_at_a_time_hash(first_concat, total_count);
+      printf("\nConcatenated String: %lld", parent_value);
+      printf("\n\n");
+      free(holdcharacters);
+      free(temp1); 
+      free(temp2); 
+
+
+
+
+
+
+
+
   }
 
-  //printf("\nreturning value: %lld\n", y);
   return (void *) parent_value;
 }
 //////////////////////////////////////////////////////////////////////
