@@ -10,6 +10,12 @@
 #include <sys/mman.h>
 #include <pthread.h>
 #include <string.h>
+#include <sys/time.h>
+
+
+#include "common.h"
+#include "common_threads.h"
+
 
 #define BSIZE 4096
 
@@ -23,7 +29,7 @@ struct recursive_variables {
 
 // Print out the usage of the program and exit.
 void Usage(char*);
-void *thread_testing(void* struct_data);
+void *binary_threads(void* struct_data);
 uint32_t jenkins_one_at_a_time_hash(uint8_t* , uint64_t );
 
 int number_of_integers(uint64_t);
@@ -85,17 +91,24 @@ int main(int argc, char** argv) {
 
 
   nblocks_each_thread = nblocks/threads;
-  printf("\nnblocks for each thread: %d \n", nblocks_each_thread);
+  printf("\nnblocks for each thread: %lld \n", nblocks_each_thread);
 
   struct recursive_variables *temp_hold = malloc(sizeof(struct recursive_variables));
   temp_hold->threads = threads;
   temp_hold->nblocks_each_thread = nblocks_each_thread;
   temp_hold->thread_current_count = 0;
 
+  
+  uint64_t main_parent_hash;
+
+
+  printf(" no. of blocks = %llu \n", nblocks);
+  double start = GetTime();
+
 
   pthread_t p1; 
-  pthread_create(&p1, NULL, thread_testing, temp_hold);
-  pthread_join(p1, NULL);  
+  pthread_create(&p1, NULL, binary_threads, temp_hold);
+  pthread_join(p1, (void *) &main_parent_hash);  
   free(temp_hold); 
 
 //////////////////////////////////////////////////////////////////////////
@@ -107,29 +120,12 @@ int main(int argc, char** argv) {
 
 
 
-/*
-  printf("\n\n\n");
-  uint32_t x = 0;
-  printf("\n%d",nblocks_each_thread);
-  printf("\n%d",fileStat.st_size);
-  printf("\n%d",nblocks_each_thread * 4096);
-  
-  for(int i = 0; i < nblocks_each_thread * 4096; i++){
-    x+= 1;
-  }
-  printf("\nTOTAL BYTES IN MAIN %d\n", x);
-  //printf("\n%d",fileStat.st_size);
-  //x = jenkins_one_at_a_time_hash(file_string, fileStat.st_size);
-  //printf("\n%lld\n",x);
-  
-  /*
-  printf(" no. of blocks = %u \n", nblocks);
-  double start = GetTime();
+
   // calculate hash value of the input file
   double end = GetTime();
-  printf("hash value = %u \n", hash);
+  printf("hash value = %llu \n", main_parent_hash);
   printf("time taken = %f \n", (end - start));
-  */
+  
 /* Ignore this
   if(1 < 0){
     printf("%d",nblocks);
@@ -168,31 +164,7 @@ int main(int argc, char** argv) {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-void *thread_testing(void* struct_data){
+void *binary_threads(void* struct_data){
   
   // Set and create "struct_data" and assign it to "*thread_node" to hold
   struct recursive_variables *thread_node = (struct recursive_variables*)struct_data;
@@ -212,9 +184,7 @@ void *thread_testing(void* struct_data){
   // If we reach our thread max, skip all this and 
   // return a "parent_hash", which is just zero
   if(currrent_thread < thread_node->threads){   
-
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // Allocate 2 "struct recursive_variables" variables to pass to "pthread_create"
     struct recursive_variables *temp1 = malloc(sizeof(struct recursive_variables));
       temp1->nblocks_each_thread = nblocks_each_thread;
       temp1->threads = thread_node->threads;
@@ -225,7 +195,6 @@ void *thread_testing(void* struct_data){
       temp2->threads = thread_node->threads;
       temp2->thread_current_count = (2 * currrent_thread + 2);   
 
-
     // Create two variables to hold returning data from threads
     uint64_t left_child_hash;
     uint64_t right_child_hash;
@@ -233,8 +202,8 @@ void *thread_testing(void* struct_data){
     // Intialize the threads and pass in previous allocated struct variables
     pthread_t p1, p2;
 
-    pthread_create(&p1, NULL, thread_testing, temp1); 
-    pthread_create(&p2, NULL, thread_testing, temp2); 
+    pthread_create(&p1, NULL, binary_threads, temp1); 
+    pthread_create(&p2, NULL, binary_threads, temp2); 
     pthread_join(p1, (void *) &left_child_hash);  
     pthread_join(p2, (void *) &right_child_hash);  
 
@@ -242,112 +211,105 @@ void *thread_testing(void* struct_data){
     free(temp1); 
     free(temp2); 
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-
-
-
-
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-
     // Intialize a counter variable for "holdcharacters[count_i]"
-    // Since we need to store the first element to the end
+    // Since we need to store from first element to the last element
     uint64_t count_i = 0;
+
+    // Allocate "holdcharacters" to hold parts of the main file
     uint8_t *holdcharacters = (uint8_t *) malloc ((nblocks_each_thread * BSIZE) *sizeof(uint8_t));
 
     // Get beginning and ending index according to the current thread
     uint64_t beginning_index = (BSIZE * nblocks_each_thread * currrent_thread);
     uint64_t ending_index = (BSIZE * ((currrent_thread + 1) * nblocks_each_thread));
 
+    // Assign every 
     for(uint64_t i = beginning_index; i < ending_index; i++){
       holdcharacters[count_i++] = file_string[i]; 
     }
     
+    // Begin the jenkins function
     parent_hash = jenkins_one_at_a_time_hash(holdcharacters, (BSIZE * nblocks_each_thread));
-
 
     int check_child_not_zero = 0;
 
+    // If both childs return 0, everything below
+    // is skipped, we only return the parents hash
     if(left_child_hash == 0 && right_child_hash == 0){
-      printf("\nConcatenated String: %lld", parent_hash);
+      //printf("\nConcatenated String: %lld", parent_hash);
       check_child_not_zero = 1;
-      //return (void *) parent_hash;
     }
-  ////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-
+    // Using "check_child_not_zero"
+    // we check that, if both childs are 0
+    // we skipp everything below
     if (check_child_not_zero != 1){ 
 
+      // We count and set how many indexes each integer has
       int parent_integer = number_of_integers(parent_hash);
       int left_integer = number_of_integers(left_child_hash);
       int right_integer = number_of_integers(right_child_hash);
+
+      // Use this to count how many total 
+      // indexes for parent and childs combined
       int total_count = 0;
 
+      // Assing char variable for each child and parent,
+      // this is needed to convert integers to strings
+      // and concat strings.
       char parent_string[parent_integer+1];
       char l_child_string[left_integer+1];
       char r_child_string[right_integer+1];
 
+      // Set integers to string
       sprintf(parent_string, "%lld", parent_hash);
       sprintf(l_child_string, "%lld", left_child_hash);
       sprintf(r_child_string, "%lld", right_child_hash);
 
 
+      // This is going to be use to add every string together
+      uint8_t first_concat[50];
 
-
-      char first_concat[100];
-
+      // If both childs are not 0, then we concat everything
       if(left_integer != 0 && right_integer != 0){
-        printf("\n1 left_integer != 0 && right_integer != 0");
+        //printf("\n1 left_integer != 0 && right_integer != 0");
         strcat(first_concat,parent_string);
         strcat(first_concat,l_child_string);
         strcat(first_concat,r_child_string);
         total_count = parent_integer + left_integer + right_integer;
       }
+      // Go here if one of the childs is 0
       else{
+        // If left is 0, concat parent and right child,
+        // and vice versa for the block in the bottom
         if(left_integer == 0 && right_integer != 0){
-        printf("\n2 left_integer == 0 && right_integer != 0");
+          //printf("\n2 left_integer == 0 && right_integer != 0");
           strcat(first_concat,parent_string);
           strcat(first_concat,r_child_string);
           total_count = parent_integer + right_integer;
         }
         else if(left_integer != 0 && right_integer == 0){
-        printf("\n3 left_integer != 0 && right_integer == 0");
+          //printf("\n3 left_integer != 0 && right_integer == 0");
           strcat(first_concat,parent_string);
           strcat(first_concat,l_child_string);
           total_count = parent_integer + left_integer;
         }
-        else{
-        printf("\n4 JUST PARENT");
-          strcat(first_concat,parent_string);
-          total_count = parent_integer;
-        }
       }
-      printf("\ncurrent Thread: %d", currrent_thread);
-      printf("\nConcatenated String: %s, AND Conca. value: %d", first_concat, total_count);
+      //printf("\ncurrent Thread: %d", currrent_thread);
+      //printf("\nConcatenated String: %s, AND Conca. value: %d", first_concat, total_count);
+      
+      // Use Jenkins!!! and get the hash from parent and childs
       parent_hash = jenkins_one_at_a_time_hash(first_concat, total_count);
-      printf("\nConcatenated String: %lld", parent_hash);
-      printf("\n\n");
+      //printf("\nConcatenated String: %lld", parent_hash);
+      //printf("\n\n");
+
+      // Free the allocated char "holdcharacters"
       free(holdcharacters);
-
     } 
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-
-
-
-
-
   }
-
+  // Return 0, if we reach our max thread,
+  // or hash value
   return (void *) parent_hash;
 }
-//////////////////////////////////////////////////////////////////////
-
 
 
 
