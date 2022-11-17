@@ -84,27 +84,38 @@ int main(int argc, char** argv) {
 
 
   nblocks_each_thread = nblocks/threads;
-  printf("\nnblocks for each thread: %lu \n\n\n", nblocks_each_thread);
+  printf("\nnblocks for each thread: %llu \n\n\n", nblocks_each_thread);
 
   struct recursive_variables *temp_hold = malloc(sizeof(struct recursive_variables));
   temp_hold->threads = threads;
   temp_hold->nblocks_each_thread = nblocks_each_thread;
   temp_hold->thread_current_count = 0;
   
-  uint32_t main_parent_hash;
 
-  printf(" no. of blocks = %lu \n\n\n\n", nblocks);
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  uint32_t *main_parent_hash = NULL;
+  
+
+  printf(" no. of blocks = %llu \n\n\n\n", nblocks);
   double start = GetTime();
 
 
   pthread_t p1; 
   pthread_create(&p1, NULL, binary_threads, temp_hold);
   pthread_join(p1, (void *) &main_parent_hash);  
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
   free(temp_hold); 
 
   // calculate hash value of the input file
   double end = GetTime();
-  printf("\n\n\nhash value = %u \n", main_parent_hash);
+  printf("\n\n\nhash value = %u \n", *main_parent_hash);
   printf("time taken = %f \n", (end - start));
   
   close(fd);
@@ -113,16 +124,32 @@ int main(int argc, char** argv) {
 
 
 
+
+
 void *binary_threads(void* struct_data){  
+
   // Set and create "struct_data" and assign it to "*thread_node" to hold
   struct recursive_variables *thread_node = (struct recursive_variables*)struct_data;
   // Assing the current thread num, to "currrent_thread"
   uint16_t currrent_thread = thread_node->thread_current_count;
   // "nblocks_each_thread" will hold num of nblocks each thread must have
   uint64_t nblocks_each_thread = thread_node->nblocks_each_thread;
+ 
+ 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
   // Variable will be use to send hash value pack,
   // 0 sent back if child threads come back 0.
   uint32_t parent_hash = 0;
+  uint32_t *returnig_hash_value = malloc(sizeof(uint32_t *));
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 
   // Check if "currrent_thread" is still valid
@@ -141,22 +168,44 @@ void *binary_threads(void* struct_data){
       temp2->threads = thread_node->threads;
       temp2->thread_current_count = (2 * currrent_thread + 2);   
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
     // Create two variables to hold returning data from threads
-    uint32_t right_child_hash;
-    uint32_t left_child_hash;
+    uint32_t right_child_hash = 0;
+    uint32_t left_child_hash = 0;
     
+    uint32_t *left_value = NULL;
+    uint32_t *right_value = NULL;
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
     // Intialize the threads and pass in previous allocated struct variables
     pthread_t p1, p2;
 
-    pthread_create(&p1, NULL, binary_threads, temp1); 
-    pthread_create(&p2, NULL, binary_threads, temp2); 
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    pthread_join(p1, (void *) &left_child_hash);  
-    pthread_join(p2, (void *) &right_child_hash);  
+      
+      if(currrent_thread+1 < thread_node->threads){
+        pthread_create(&p1, NULL, binary_threads, temp1); 
+        pthread_create(&p2, NULL, binary_threads, temp2);
+      }
 
-    // Free the previous struct variables when coming back from pthreads
-    free(temp1); 
-    free(temp2); 
+      
+ 
+
+
+
+
+
+
 
     // Intialize a counter variable for "holdcharacters[count_i]"
     // Since we need to store from first element to the last element
@@ -176,6 +225,32 @@ void *binary_threads(void* struct_data){
     
     // Begin the jenkins function
     parent_hash = jenkins_one_at_a_time_hash(holdcharacters, (BSIZE * nblocks_each_thread));
+
+    free(holdcharacters);
+
+
+    if(currrent_thread+1 < thread_node->threads){
+      pthread_join(p1, (void *) &left_value);  
+      pthread_join(p2, (void *) &right_value);  
+
+      left_child_hash = *left_value;
+      right_child_hash = *right_value;
+    }
+
+    free(left_value);
+    free(right_value);
+
+    
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+    // Free the previous struct variables when coming back from pthreads
+    free(temp1); 
+    free(temp2); 
+
+
 
     int check_child_not_zero = 0;
 
@@ -255,14 +330,29 @@ void *binary_threads(void* struct_data){
 
       // Free the allocated char "holdcharacters"
       free(first_concat);
-      free(holdcharacters);
     } 
   }
 
   // Return 0, if we reach our max thread,
   // or hash value
-  return ((void *) (uintptr_t) parent_hash);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+  printf("\n%u\n", parent_hash);
+  printf("\n%u\n", *returnig_hash_value);
+
+  *returnig_hash_value = parent_hash;
+  pthread_exit((void *) (uintptr_t) returnig_hash_value);
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 }
+
 
 
 int number_of_integers(uint32_t integer){
