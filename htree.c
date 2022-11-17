@@ -250,6 +250,12 @@ void *binary_threads(void* struct_data){
       sprintf(l_child_string, "%u", left_child_hash);
       sprintf(r_child_string, "%u", right_child_hash);
 
+
+
+
+
+
+
       // This is going to be use to add every string together
       uint8_t *first_concat = (uint8_t *) malloc ((60) *sizeof(uint8_t));
     
@@ -257,11 +263,31 @@ void *binary_threads(void* struct_data){
       // If both childs are not 0, then we concat everything
       if(left_integer != 0 && right_integer != 0){
         
+
         total_count = parent_integer + left_integer + right_integer;
         
-        strcat((char *) first_concat, parent_string);
-        strcat((char *) first_concat, l_child_string);
-        strcat((char *) first_concat, r_child_string);
+        
+        for(int i = 0; i < total_count; i++){
+          if(i < parent_integer){
+            first_concat[i] = parent_string[i];
+          }
+          else if (i >= parent_integer && i < (parent_integer + left_integer)){
+            first_concat[i] = l_child_string[i - (parent_integer)];
+          }
+          else if (i >= (parent_integer + left_integer) && i < total_count){
+            first_concat[i] = r_child_string[i - (parent_integer + left_integer)];
+          }  
+        }
+        
+        printf("\nCONCAT Th %d, 3: AFTER, %s", currrent_thread, first_concat);
+        
+        
+        //strcat((char *) first_concat, parent_string);
+        //printf("\nCONCAT Th %d, 1: BEFORE, %s - AFTER, %s", currrent_thread, parent_string, first_concat);
+        //strcat((char *) first_concat, l_child_string);
+        //printf("\nCONCAT Th %d, 2: BEFORE, %s - AFTER, %s", currrent_thread, l_child_string, first_concat);
+        //strcat((char *) first_concat, r_child_string);
+        //printf("\nCONCAT Th %d, 3: BEFORE, %s - AFTER, %s", currrent_thread, r_child_string, first_concat);
       
       }
 
@@ -274,20 +300,47 @@ void *binary_threads(void* struct_data){
   
           //printf("\nGOING 2...");
           total_count = parent_integer + right_integer;
-          strcat((char *) first_concat, parent_string);
-          strcat((char *) first_concat, r_child_string);
 
-        }
+
+
+          //strcat((char *) first_concat, parent_string);
+          //strcat((char *) first_concat, r_child_string);
+
+
+          for(int i = 0; i < total_count; i++){
+            if(i < parent_integer){
+              first_concat[i] = parent_string[i];
+            }
+            else if (i >= parent_integer && i < (parent_integer + right_integer)){
+              first_concat[i] = r_child_string[i - (parent_integer)];
+            }
+
+
+          }
+        
+        printf("\nCONCAT Th %d, 3: AFTER, %s", currrent_thread, first_concat);
+      }
         if(left_integer != 0 && right_integer == 0){
+         
+         
           total_count = parent_integer + left_integer;
 
           //printf("\nGOING 3...");
 
-          strcat((char *) first_concat, parent_string);
-          strcat((char *) first_concat, l_child_string);
+          //strcat((char *) first_concat, parent_string);
+          //strcat((char *) first_concat, l_child_string);
 
+          for(int i = 0; i < total_count; i++){
+            if(i < parent_integer){
+              first_concat[i] = parent_string[i];
+            }
+            else if (i >= parent_integer && i < (parent_integer + left_integer)){
+              first_concat[i] = l_child_string[i - (parent_integer)];
+            }
+
+          }
         }
-      }      
+    }      
 //////////////////////////////////////////////////////////////////////////
 
 
