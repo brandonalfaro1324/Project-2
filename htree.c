@@ -2,7 +2,7 @@
 #include <stdlib.h>   
 #include <stdint.h>  
 #include <inttypes.h>  
-#include <errno.h>     // for EINTR
+#include <errno.h>
 #include <fcntl.h>     
 #include <unistd.h>    
 #include <sys/types.h>
@@ -12,10 +12,8 @@
 #include <string.h>
 #include <sys/time.h>
 
-
 #include "common.h"
-#include "common_threads.h"
-
+//#include "common_threads.h"
 
 #define BSIZE 4096
 
@@ -32,11 +30,9 @@ void Usage(char*);
 void *binary_threads(void* struct_data);
 uint32_t jenkins_one_at_a_time_hash(uint8_t* , uint64_t );
 
-int number_of_integers(uint64_t);
-
+int number_of_integers(uint32_t);
 
 uint8_t *file_string;
-
 
 int main(int argc, char** argv) {
 
@@ -74,9 +70,7 @@ int main(int argc, char** argv) {
   else{
     nblocks = 1 + (fileStat.st_size/BSIZE);
   }
-
-
-
+  
 //////////////////////////////////////////////////////////////////////////
 // Begin seperating nblocks to number of threads
   uint16_t threads = atoi(argv[2]);
@@ -91,16 +85,14 @@ int main(int argc, char** argv) {
 
 
   nblocks_each_thread = nblocks/threads;
-  printf("\nnblocks for each thread: %lld \n", nblocks_each_thread);
+  printf("\nnblocks for each thread: %llu \n", nblocks_each_thread);
 
   struct recursive_variables *temp_hold = malloc(sizeof(struct recursive_variables));
   temp_hold->threads = threads;
   temp_hold->nblocks_each_thread = nblocks_each_thread;
   temp_hold->thread_current_count = 0;
-
   
-  uint64_t main_parent_hash;
-
+  uint32_t main_parent_hash;
 
   printf(" no. of blocks = %llu \n", nblocks);
   double start = GetTime();
@@ -111,73 +103,27 @@ int main(int argc, char** argv) {
   pthread_join(p1, (void *) &main_parent_hash);  
   free(temp_hold); 
 
-//////////////////////////////////////////////////////////////////////////
-
-
-
-
-
-
-
-
-
   // calculate hash value of the input file
   double end = GetTime();
-  printf("hash value = %llu \n", main_parent_hash);
+  printf("hash value = %u \n", main_parent_hash);
   printf("time taken = %f \n", (end - start));
   
-/* Ignore this
-  if(1 < 0){
-    printf("%d",nblocks);
-    printf("%hhn",file_string);
-  }
-*/
-
   close(fd);
   return EXIT_SUCCESS;
 }
 
 
 
-//////////////////////////////////////////////////////////////////////
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-void *binary_threads(void* struct_data){
-  
+void *binary_threads(void* struct_data){  
   // Set and create "struct_data" and assign it to "*thread_node" to hold
   struct recursive_variables *thread_node = (struct recursive_variables*)struct_data;
-
   // Assing the current thread num, to "currrent_thread"
   uint16_t currrent_thread = thread_node->thread_current_count;
-  
   // "nblocks_each_thread" will hold num of nblocks each thread must have
   uint64_t nblocks_each_thread = thread_node->nblocks_each_thread;
-  
   // Variable will be use to send hash value pack,
   // 0 sent back if child threads come back 0.
-  uint64_t parent_hash = 0;
+  uint32_t parent_hash = 0;
 
 
   // Check if "currrent_thread" is still valid
@@ -196,8 +142,8 @@ void *binary_threads(void* struct_data){
       temp2->thread_current_count = (2 * currrent_thread + 2);   
 
     // Create two variables to hold returning data from threads
-    uint64_t left_child_hash;
-    uint64_t right_child_hash;
+    uint32_t left_child_hash;
+    uint32_t right_child_hash;
     
     // Intialize the threads and pass in previous allocated struct variables
     pthread_t p1, p2;
@@ -256,26 +202,29 @@ void *binary_threads(void* struct_data){
       // Assing char variable for each child and parent,
       // this is needed to convert integers to strings
       // and concat strings.
+
       char parent_string[parent_integer+1];
       char l_child_string[left_integer+1];
       char r_child_string[right_integer+1];
 
       // Set integers to string
-      sprintf(parent_string, "%lld", parent_hash);
-      sprintf(l_child_string, "%lld", left_child_hash);
-      sprintf(r_child_string, "%lld", right_child_hash);
-
+      sprintf(parent_string, "%u", parent_hash);
+      sprintf(l_child_string, "%u", left_child_hash);
+      sprintf(r_child_string, "%u", right_child_hash);
 
       // This is going to be use to add every string together
-      uint8_t first_concat[50];
+      uint8_t *first_concat = (uint8_t *) malloc ((50) *sizeof(uint8_t));
 
       // If both childs are not 0, then we concat everything
       if(left_integer != 0 && right_integer != 0){
         //printf("\n1 left_integer != 0 && right_integer != 0");
-        strcat(first_concat,parent_string);
-        strcat(first_concat,l_child_string);
-        strcat(first_concat,r_child_string);
+        
         total_count = parent_integer + left_integer + right_integer;
+        
+        strcat((char *) first_concat, parent_string);
+        strcat((char *) first_concat, l_child_string);
+        strcat((char *) first_concat, r_child_string);
+      
       }
       // Go here if one of the childs is 0
       else{
@@ -283,53 +232,50 @@ void *binary_threads(void* struct_data){
         // and vice versa for the block in the bottom
         if(left_integer == 0 && right_integer != 0){
           //printf("\n2 left_integer == 0 && right_integer != 0");
-          strcat(first_concat,parent_string);
-          strcat(first_concat,r_child_string);
+          
           total_count = parent_integer + right_integer;
+          strcat((char *) first_concat, parent_string);
+          strcat((char *) first_concat, r_child_string);
+
         }
         else if(left_integer != 0 && right_integer == 0){
           //printf("\n3 left_integer != 0 && right_integer == 0");
-          strcat(first_concat,parent_string);
-          strcat(first_concat,l_child_string);
           total_count = parent_integer + left_integer;
+
+          strcat((char *) first_concat, parent_string);
+          strcat((char *) first_concat, l_child_string);
         }
-      }
-      //printf("\ncurrent Thread: %d", currrent_thread);
-      //printf("\nConcatenated String: %s, AND Conca. value: %d", first_concat, total_count);
-      
+      }      
       // Use Jenkins!!! and get the hash from parent and childs
       parent_hash = jenkins_one_at_a_time_hash(first_concat, total_count);
-      //printf("\nConcatenated String: %lld", parent_hash);
-      //printf("\n\n");
 
       // Free the allocated char "holdcharacters"
+      free(first_concat);
       free(holdcharacters);
     } 
   }
   // Return 0, if we reach our max thread,
   // or hash value
-  return (void *) parent_hash;
+  return ((void *) (intptr_t) parent_hash);
 }
 
+/*
+htree.c:89:3: error: format ‘%llu’ expects argument of type ‘long long unsigned int’, but argument 2 has type ‘uint64_t’ [-Werror=format=]
+   printf("\nnblocks for each thread: %llu \n", nblocks_each_thread);
+   ^
+htree.c:98:3: error: format ‘%llu’ expects argument of type ‘long long unsigned int’, but argument 2 has type ‘uint64_t’ [-Werror=format=]
+   printf(" no. of blocks = %llu \n", nblocks);
+*/
 
 
 
-
-
-
-
-
-
-
-
-int number_of_integers(uint64_t integer){
+int number_of_integers(uint32_t integer){
     int number_of_integers = 0;
-    uint64_t val = integer;
+    uint32_t val = integer;
     while(val > 0){      
       val /= 10;
       number_of_integers++;
     }
-
   return number_of_integers;
 }
 
@@ -348,8 +294,7 @@ uint32_t jenkins_one_at_a_time_hash(uint8_t* key, uint64_t length) {
   return hash;
 }
 
-void Usage(char* s) 
-{
+void Usage(char* s) {
   fprintf(stderr, "Usage: %s filename num_threads \n", s);
   exit(EXIT_FAILURE);
 }
