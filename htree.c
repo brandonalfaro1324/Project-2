@@ -27,7 +27,7 @@ struct recursive_variables {
 // Print out the usage of the program and exit.
 void Usage(char*);
 void *binary_threads(void* struct_data);
-uint32_t jenkins_one_at_a_time_hash(uint8_t* , uint32_t );
+uint32_t jenkins_one_at_a_time_hash(uint8_t* , uint64_t );
 
 int number_of_integers(uint32_t);
 
@@ -148,12 +148,33 @@ void *binary_threads(void* struct_data){
   // 0 sent back if child threads come back 0.
   uint32_t *parent_hash = NULL;
   parent_hash = malloc(sizeof(uint32_t *));
-
+  *parent_hash = 0;
 
   // Check if "currrent_thread" is still valid
   // If we reach our thread max, skip all this and 
   // return a "parent_hash", which is just zero
+  
+  
+  //int check_current = (2 * currrent_thread + 1);
+
+  //printf("\nCHECKING CURRENT %d", check_current);
+
   if(currrent_thread < thread_node->threads){  
+
+    // Create two variables to hold returning data from threads
+    uint32_t *right_child_hash = malloc(sizeof(uint32_t *));
+    uint32_t *left_child_hash = malloc(sizeof(uint32_t *));
+    
+    *left_child_hash = 0;
+    *right_child_hash = 0;
+
+
+
+
+
+
+    int check_current = (2 * currrent_thread + 1);
+    if(check_current < thread_node->threads){
 
     // Allocate 2 "struct recursive_variables" variables to pass to "pthread_create"
     struct recursive_variables *temp1 = malloc(sizeof(struct recursive_variables));
@@ -166,26 +187,15 @@ void *binary_threads(void* struct_data){
       temp2->threads = thread_node->threads;
       temp2->thread_current_count = (2 * currrent_thread + 2);   
 
-    // Create two variables to hold returning data from threads
-    uint32_t *right_child_hash = malloc(sizeof(uint32_t *));
-    uint32_t *left_child_hash = malloc(sizeof(uint32_t *));
-    
+
+
     // Intialize the threads and pass in previous allocated struct variables
     pthread_t p1, p2;
 
     pthread_create(&p1, NULL, binary_threads, temp1); 
     pthread_create(&p2, NULL, binary_threads, temp2); 
 
-    pthread_join(p1, (void *) left_child_hash);  
-    pthread_join(p2, (void *) right_child_hash);  
-
-
-    printf("\n%u", *left_child_hash);
-    printf("\n%u", *right_child_hash);
-
-    // Free the previous struct variables when coming back from pthreads
-    free(temp1); 
-    free(temp2); 
+    ////////////////////////////////////////////////////////
 
     // Intialize a counter variable for "holdcharacters[count_i]"
     // Since we need to store from first element to the last element
@@ -206,6 +216,72 @@ void *binary_threads(void* struct_data){
     // Begin the jenkins function
     *parent_hash = jenkins_one_at_a_time_hash(holdcharacters, (BSIZE * nblocks_each_thread));
     free(holdcharacters);
+
+
+    ////////////////////////////////////////////////////////
+
+    pthread_join(p1, (void *) left_child_hash);  
+    pthread_join(p2, (void *) right_child_hash);  
+
+
+    //printf("\n%u", *left_child_hash);
+    //printf("\n%u", *right_child_hash);
+
+    // Free the previous struct variables when coming back from pthreads
+    free(temp1); 
+    free(temp2); 
+
+
+
+
+    }
+    else{
+  
+      ////////////////////////////////////////////////////////
+      // Intialize a counter variable for "holdcharacters[count_i]"
+      // Since we need to store from first element to the last element
+      uint64_t count_i = 0;
+
+      // Allocate "holdcharacters" to hold parts of the main file
+      uint8_t *holdcharacters = (uint8_t *) malloc ((nblocks_each_thread * BSIZE) *sizeof(uint8_t));
+
+      // Get beginning and ending index according to the current thread
+      uint64_t beginning_index = (BSIZE * nblocks_each_thread * currrent_thread);
+      uint64_t ending_index = (BSIZE * ((currrent_thread + 1) * nblocks_each_thread));
+
+      // Assign every 
+
+      //printf("\nBeginning and Ending%llu - %llu", beginning_index, ending_index);
+
+      for(uint64_t i = beginning_index; i < ending_index; i++){
+        holdcharacters[count_i++] = file_string[i]; 
+      }
+
+      //printf("\nFirst CHar and Last [ %c - %c]", holdcharacters[0], holdcharacters[ending_index-1]);
+
+      // Begin the jenkins function
+
+
+      *parent_hash = jenkins_one_at_a_time_hash(holdcharacters, (BSIZE * nblocks_each_thread));
+
+      printf("\nPARENT HASH: %u", *parent_hash);
+      free(holdcharacters);
+      ////////////////////////////////////////////////////////
+
+
+
+
+
+    }
+
+
+   
+
+
+
+
+
+
 
 
     int check_child_not_zero = 0;
@@ -293,6 +369,8 @@ void *binary_threads(void* struct_data){
     } 
   }
 
+  printf("\nTHREAD %d - %u", currrent_thread, *parent_hash);
+
   // Return 0, if we reach our max thread,
   // or hash value
   return ((void *) (uintptr_t) *parent_hash);
@@ -310,7 +388,7 @@ int number_of_integers(uint32_t integer){
   return number_of_integers;
 }
 
-uint32_t jenkins_one_at_a_time_hash(uint8_t* key, uint32_t length) {
+uint32_t jenkins_one_at_a_time_hash(uint8_t* key, uint64_t length) {
   uint64_t i = 0;
   uint32_t hash = 0;
 
