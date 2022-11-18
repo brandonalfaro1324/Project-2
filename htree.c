@@ -95,7 +95,7 @@ int main(int argc, char** argv) {
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-  uint32_t *main_parent_hash = malloc(sizeof(uint32_t *));
+  uint32_t *main_parent_hash = NULL;
   
 
   printf(" no. of blocks = %llu \n\n\n\n", nblocks);
@@ -103,13 +103,13 @@ int main(int argc, char** argv) {
 
   pthread_t p1; 
   pthread_create(&p1, NULL, binary_threads, temp_hold);
-  pthread_join(p1, (void *) main_parent_hash);  
+  pthread_join(p1, (void **) &main_parent_hash);  
 ////////////////////////////////////////////////////////////////////////////////////////////////////
   
 
 
 
-
+  free(main_parent_hash);
 
 
   // calculate hash value of the input file
@@ -157,16 +157,22 @@ void *binary_threads(void* struct_data){
   
   //int check_current = (2 * currrent_thread + 1);
 
-  //printf("\nCHECKING CURRENT %d", check_current);
+  //printf("\nCHECKING CURRENT %d", currrent_thread);
 
   if(currrent_thread < thread_node->threads){  
 
+  //printf("\nCHECKING CURRENT %d, TEST2", currrent_thread);
+
+
     // Create two variables to hold returning data from threads
-    uint32_t *right_child_hash = malloc(sizeof(uint32_t *));
-    uint32_t *left_child_hash = malloc(sizeof(uint32_t *));
-    
-    *left_child_hash = 0;
-    *right_child_hash = 0;
+    uint32_t *right_child_hash = NULL;
+    uint32_t *left_child_hash = NULL;
+
+  //printf("\nCHECKING CURRENT %d, TEST3", currrent_thread);
+
+
+    //*left_child_hash = 0;
+    //*right_child_hash = 0;
 
 
 
@@ -187,6 +193,7 @@ void *binary_threads(void* struct_data){
       temp2->threads = thread_node->threads;
       temp2->thread_current_count = (2 * currrent_thread + 2);   
 
+  //printf("\nCHECKING CURRENT %d, TEST4", currrent_thread);
 
 
     // Intialize the threads and pass in previous allocated struct variables
@@ -212,6 +219,7 @@ void *binary_threads(void* struct_data){
     for(uint64_t i = beginning_index; i < ending_index; i++){
       holdcharacters[count_i++] = file_string[i]; 
     }
+    //printf("\nCHECKING CURRENT %d, TEST5", currrent_thread);
 
     // Begin the jenkins function
     *parent_hash = jenkins_one_at_a_time_hash(holdcharacters, (BSIZE * nblocks_each_thread));
@@ -220,8 +228,8 @@ void *binary_threads(void* struct_data){
 
     ////////////////////////////////////////////////////////
 
-    pthread_join(p1, (void *) left_child_hash);  
-    pthread_join(p2, (void *) right_child_hash);  
+    pthread_join(p1, (void **) &left_child_hash);  
+    pthread_join(p2, (void **) &right_child_hash);  
 
 
     //printf("\n%u", *left_child_hash);
@@ -264,7 +272,7 @@ void *binary_threads(void* struct_data){
 
       *parent_hash = jenkins_one_at_a_time_hash(holdcharacters, (BSIZE * nblocks_each_thread));
 
-      printf("\nPARENT HASH: %u", *parent_hash);
+      //printf("\nPARENT HASH: %u", *parent_hash);
       free(holdcharacters);
       ////////////////////////////////////////////////////////
 
@@ -276,6 +284,7 @@ void *binary_threads(void* struct_data){
 
 
    
+    //printf("\nCHECKING CURRENT %d, TEST4", currrent_thread);
 
 
 
@@ -288,7 +297,11 @@ void *binary_threads(void* struct_data){
 
     // If both childs return 0, everything below
     // is skipped, we only return the parents hash
-    if(*left_child_hash == 0 && *right_child_hash == 0){
+    
+    if(left_child_hash == NULL && right_child_hash == NULL){
+      check_child_not_zero = 1;
+    }
+    else if(*left_child_hash == 0 && *right_child_hash == 0){
       check_child_not_zero = 1;
     }
 
@@ -373,8 +386,22 @@ void *binary_threads(void* struct_data){
 
   // Return 0, if we reach our max thread,
   // or hash value
-  return ((void *) (uintptr_t) *parent_hash);
+
+
+  return ((void **) parent_hash);
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
