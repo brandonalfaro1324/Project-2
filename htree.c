@@ -17,8 +17,6 @@
 #define BSIZE 4096
 
 struct recursive_variables {   
-  //uint32_t nblocks;
-
   uint64_t nblocks_each_thread;   
   uint16_t threads;
   uint16_t thread_current_count;
@@ -36,13 +34,13 @@ uint8_t *file_string;
 int main(int argc, char** argv) {
 
 
-  //////////////////////////////////////////////////////////
+  /**********/////////////////////////////////////////////////**********/
   int32_t fd;
   uint64_t nblocks;
 
   struct stat fileStat;
   uint64_t nblocks_each_thread = 0;
-  //////////////////////////////////////////////////////////
+  /**********/////////////////////////////////////////////////**********/
 
   // input checking 
   if (argc != 3)
@@ -70,70 +68,68 @@ int main(int argc, char** argv) {
     nblocks = 1 + (fileStat.st_size/BSIZE);
   }
   
-//////////////////////////////////////////////////////////////////////////
-// Begin seperating nblocks to number of threads
+  // Begin seperating nblocks to number of threads
+  // Exit if thread is less than 0 or more than nblocks
+  // Aswell if there is uneven amount of nblocks for each thread
   uint16_t threads = atoi(argv[2]);
-  if(threads == 0 || nblocks < threads){
+  if(threads == 0 || nblocks < threads){  
     perror("Number of threads are more than number of blocks...");
     exit(EXIT_FAILURE);
   }
-  else if (nblocks % threads != 0){
-  perror("Nblocks not evenly distributing to number of threads...");
-  exit(EXIT_FAILURE);
+  else if (nblocks % threads != 0){       
+    perror("Nblocks not evenly distributing to number of threads...");
+    exit(EXIT_FAILURE);
   }
 
-
+  // Get number of nblocks for each thread
   nblocks_each_thread = nblocks/threads;
-  printf("\nnblocks for each thread: %llu \n\n\n", nblocks_each_thread);
 
+  // Initialize struct to pass variables to "pthread_create"
   struct recursive_variables *temp_hold = malloc(sizeof(struct recursive_variables));
   temp_hold->threads = threads;
   temp_hold->nblocks_each_thread = nblocks_each_thread;
   temp_hold->thread_current_count = 0;
-  //////////////////////////////////////////////////////////////////////////
 
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Initialize variable to hold final has
   uint32_t *main_parent_hash = NULL;
-  
 
-  printf(" no. of blocks = %llu \n\n\n\n", nblocks);
+/**********/////////////////////////////////////////////////**********/
+  printf(" no. of blocks = %llu \n", nblocks);
+
+  // Beging time
   double start = GetTime();
 
+  // Now we wait
   pthread_t p1; 
-  pthread_create(&p1, NULL, binary_threads, temp_hold);
-  pthread_join(p1, (void **) &main_parent_hash);  
-////////////////////////////////////////////////////////////////////////////////////////////////////
-  
+  if(pthread_create(&p1, NULL, binary_threads, temp_hold)!=0){
+    perror("Error creating pthread...");
+    exit(EXIT_FAILURE);
+  }
+  if(pthread_join(p1, (void **) &main_parent_hash)!=0){
+    perror("Error joining pthread back...");
+    exit(EXIT_FAILURE);
+  }
+  /**********/////////////////////////////////////////////////**********/
 
-  // calculate hash value of the input file
+  // Print results and time
   double end = GetTime();
   printf("\n\n\nhash value = %u \n", *main_parent_hash);
   printf("time taken = %f \n", (end - start));
 
+  // Free "main_parent_hash"
   free(main_parent_hash);
 
-
+  // Close file and fin...
   close(fd);
   return EXIT_SUCCESS;
 }
 
 
 
-
-
-
-
-
-
-
-
-
-
-
 void *binary_threads(void* struct_data){  
 
-  /*////////////////////////////////////////////////////////////*/
+  /**********/////////////////////////////////////////////////**********/
+
 
   // Set and create "struct_data" and assign it to "*thread_node" to hold
   struct recursive_variables *thread_node = (struct recursive_variables*)struct_data;
@@ -151,11 +147,10 @@ void *binary_threads(void* struct_data){
   // If we reach our thread max, skip all this and 
   // return a "parent_hash", which is just zero
   if(currrent_thread < thread_node->threads){  
-
-
     uint64_t nsize_and_nblocks = nblocks_each_thread * BSIZE;
 
-  /*////////////////////////////////////////////////////////////*/
+
+  /**********/////////////////////////////////////////////////**********/
 
 
     // Create two variables to hold returning data from threads
@@ -251,10 +246,7 @@ void *binary_threads(void* struct_data){
       ////////////////////////////////////////////////////////
     }
 
-
-
-
-  /*////////////////////////////////////////////////////////////*/
+  /**********/////////////////////////////////////////////////**********/
 
     int check_child_not_zero = 0;
 
@@ -264,8 +256,7 @@ void *binary_threads(void* struct_data){
     if(left_child_hash == NULL && right_child_hash == NULL){
       check_child_not_zero = 1;
     }
-  /*////////////////////////////////////////////////////////////*/
-
+  /**********/////////////////////////////////////////////////**********/
 
     // Using "check_child_not_zero"
     // we check that, if both childs are 0
@@ -348,7 +339,6 @@ void *binary_threads(void* struct_data){
           total_count = parent_integer + left_integer;
           full_concat = (uint8_t *) malloc ((total_count) *sizeof(uint8_t));
 
-
           // Loop through parent and right child to assign to "full_concat" 
           for(int i = 0; i < total_count; i++){
             if(i < parent_integer){
@@ -372,20 +362,6 @@ void *binary_threads(void* struct_data){
   // Return total hash
   return ((void **) parent_hash);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 int number_of_integers(uint32_t integer){
     int number_of_integers = 0;
